@@ -1,0 +1,255 @@
+/*+ ETLM {
+depend:{
+add:[
+	{name:"dl.apt_det"},
+	{name:"dl.apt_ref"},
+    {name:"dl.apt_ship"},
+    {name:"dl.apt_ss"},
+    {name:"pr.purchase_dd"},
+    {name:"dl.scan_s"},
+    {name: "dl.sort"},
+    {name:"dl.class"},
+	]
+}
+} */
+
+/*returning details for the appointment*/
+WITH appts AS 
+	(
+		SELECT
+		
+		OEARI.refe AS apt,
+		OASP.purcase AS po,
+		OAD.warehouse,
+		OAD.transport AS transp,
+		OAD.requested AS RD,
+		OAD.requested AS SD,
+		OAD.apt_qty AS units
+		
+		FROM
+		dl.apt_det OAD
+		
+		LEFT JOIN dl.apt_ref OEARI 
+		ON OEARI.appointment_id = OAD.appointment_id
+		AND OEARI.db_regiON = OAD.db_region
+		AND OEARI.appointment_creation_day = OAD.appointment_creation_day
+		
+		LEFT JOIN dl.apt_ship OAS 
+		ON OAS.appointment_id = OAD.appointment_id
+		AND OAS.db_regiON = OAD.db_region
+		
+		LEFT JOIN dl.apt_ss OASP 
+		ON OASP.shipitem_id = OAS.shipitem_id
+
+		WHERE
+		OAD.db_regiON = 'EU'
+		AND OAD.is_deleted = 'false'
+		AND OAD.requested >= TO_DATE(current_date,'YYYY/MM/DD')- 60
+		AND OAD.appointment_type IN ('CARP')
+		AND OAD.status NOT IN ('DELETED','CANCELLED','CLOSED')
+		AND OEARI.refe_type = 'FC_INBOUND_DOCK'
+		AND OAD.warehouse IN ('DFR1','DFR5','DE78', 'DE21', 'XD14', 'XD72', 'XBER','UKSA', 'LT62', 'XG32', 'RE32','SW78', 'XITJ', 'RE34','SA54', 'BC32')
+	),
+/*returning the purchase details*/
+T_PO_apt AS 
+	(
+		SELECT
+		
+		appts.apt,
+		appts.priority,
+		appts.po,
+		appts.RD,
+		appts.transp,
+		appts.SD,
+		appts.units,
+		doi.product_type,
+		item,
+		doi.warehouse,
+		vendor_confirmed_quantity,
+		distributor_id,
+		(vendor_expected_quantity - vendor_received_quantity) AS item_expected_Units
+		
+		FROM pr.purchase_dd doi
+		
+		JOIN appts ON appts.po = doi.po  
+		
+		WHERE doi.warehouse IN ('DFR1','DFR5','DE78', 'DE21', 'XD14', 'XD72', 'XBER','UKSA', 'LT62', 'XG32', 'RE32','SW78', 'XITJ', 'RE34','SA54', 'BC32')
+		AND item_expected_Units > 0
+	),
+/*retunring the item code with the item owner code as they do not work in all the analysis tables*/
+sort_b AS
+	(
+		SELECT 
+		
+		sku,item_authority_id
+		
+		FROM dl.scan_s sk
+		
+		WHERE region_id = 2
+		AND snapshot_day = TO_DATE(getdate(), 'YYYY/MM/DD')-1 
+		AND sk.sku  IN (SELECT  DISTINCT T_PO_apt.isbn FROM T_PO_apt)
+	),
+/*check sort type of the items*/
+sort AS
+	(
+		SELECT
+		
+		CS.item,
+		CS.marketplace,
+		GREATEST(CS.length_cm, CS.width_cm, CS.height_cm) AS max_length,
+		2 *(CS.length_cm + CS.width_cm + CS.height_cm) - max_length AS Girth,
+		cs.weight_gr,
+		SortType
+		
+		FROM
+		dl.sort CS
+		
+		LEFT JOIN sort_b
+		ON CS.item = sort_b.item_authority_id
+		
+		WHERE (item IN (SELECT DISTINCT sort_b.item_authority_id FROM sort_b) OR item IN (SELECT T_PO_apt.isbn FROM T_PO_apt)) AND marketplace IN ('DE','UK','FR','IT','ES')
+    ), 
+/*returning the info for the item the appointment and sort type for item(the one starting with X need to be passed in another table)*/
+fin AS 
+	(
+
+		SELECT
+		
+		T_PO_apt.apt,
+		T_PO_apt.priority,
+		T_PO_apt.transp,
+		T_PO_apt.PO,
+		T_PO_apt.RD,
+		T_PO_apt.SD,
+		T_PO_apt.units,
+		T_PO_apt.product_type,
+		T_PO_apt.warehouse,
+		item_authority_id AS item,
+		T_PO_apt.vendor_confirmed_quantity,
+		T_PO_apt.distributor_id,
+		T_PO_apt.item_expected_Units
+		
+		FROM  T_PO_apt
+
+		LEFT JOIN sort_b
+		ON T_PO_apt.item = sort_b.sku 
+		WHERE LEFT(T_PO_apt.item,1) = 'X'
+		
+		UNION ALL
+		
+		SELECT 
+		T_PO_apt.apt,
+		T_PO_apt.priority,
+		T_PO_apt.transp,
+		T_PO_apt.PO,
+		T_PO_apt.RD,
+		T_PO_apt.SD,
+		T_PO_apt.units,
+		T_PO_apt.product_type,
+		T_PO_apt.warehouse,
+		T_PO_apt.isbn AS item,
+		T_PO_apt.vendor_confirmed_quantity,
+		T_PO_apt.distributor_id,
+		T_PO_apt.item_expected_Units
+		FROM  T_PO_apt
+	 
+		WHERE LEFT(T_PO_apt.item,1) = 'B'
+	),
+/*returning title of the items and select the one we are interested in*/
+maw AS
+	(
+		SELECT 
+		
+		item,
+		title,
+		marketplace
+		
+		FROM dl.class
+		
+		WHERE marketplace IN ('DE','UK','FR','IT','ES')
+		AND 
+		(
+			category_descriptiON IN ('abcd') AND
+			(
+				title ILIKE ('%abcd%') OR title ILIKE ('%abcd%')
+				OR title ILIKE ('%abcd%') OR title ILIKE ('%abcd%')
+				OR title ILIKE ('%abcd%') OR title ILIKE ('%abcd%')
+			)
+		)
+		or subcategory_descriptiON IN ('abcd')
+		AND title NOT ILIKE('%dcba%')
+		AND title NOT ILIKE('%dcba%')
+		AND title NOT ILIKE('%dcba%')
+		AND title NOT ILIKE('%dcba%') 
+		AND title NOT ILIKE('%dcba%')
+		AND title NOT ILIKE('%dcba%')
+		
+		GROUP BY 1,2,3
+	)
+    
+SELECT
+    
+fin.apt,
+fin.transp,
+fin.priority,
+fin.PO,
+to_date(fin.RD, 'YYYY/MM/DD') AS RD,
+to_date(fin.SD, 'YYYY/MM/DD') AS SD,
+fin.units,
+fin.product_type,
+CASE
+	WHEN warehouse IN ('DFR5', 'DFR1') then 'FR'
+	WHEN warehouse IN ('DE78', 'DE21', 'XD14', 'XD72','XBER') then 'DE'
+	WHEN warehouse IN ('UKSA', 'LT62', 'XG32','RE32') then 'UK'
+	WHEN warehouse IN ('SW78', 'XITJ', 'RE34') then 'IT'
+	WHEN warehouse IN ('AS21', 'BC32','SA54') then 'ES'
+	else 'none'
+END AS Country,
+fin.warehouse,
+fin.item,
+MAW.title, 
+fin.vendor_confirmed_quantity,
+fin.distributor_id,
+fin.item_expected_Units,
+sort.marketplace,
+sort.max_length,
+sort.Girth,
+sort.weight_gr,
+sort.SortType
+
+FROM fin
+
+LEFT JOIN sort
+ON fin.item = sort.item
+AND
+CASE 
+    WHEN fin.country IN ('DE78','XD14','XD72' , 'PDEJ' ,'DE21') then sort.marketplace = 'DE' 
+    WHEN fin.warehouse IN ('XG32', 'LT62','UKSA') then sort.marketplace = 'UK'
+    WHEN fin.warehouse IN ('DFR1','DFR5') then sort.marketplace = 'FR' 
+    WHEN fin.warehouse IN ('RE34', 'XITJ','SW78') then sort.marketplace = 'IT' 
+    WHEN fin.warehouse IN ('AS21','BC32','PESG','SA54') then sort.marketplace = 'ES'
+END
+/*inner join as we are interested only in the items filtered in the maw table*/
+JOIN maw
+ON maw.item = fin.item
+AND
+        CASE
+            WHEN fin.warehouse = 'DFR1' then maw.marketplace = 'FR' 
+            WHEN fin.warehouse = 'DFR5' then maw.marketplace = 'FR' 
+            WHEN fin.warehouse = 'RE34' then maw.marketplace = 'IT'
+            WHEN fin.warehouse = 'XITJ' then maw.marketplace = 'IT' 
+            WHEN fin.warehouse = 'SW78' then maw.marketplace = 'IT' 
+            WHEN fin.warehouse = 'AS21' then maw.marketplace = 'ES'
+            WHEN fin.warehouse = 'BC32' then maw.marketplace = 'ES'
+            WHEN fin.warehouse = 'SA54' then maw.marketplace = 'ES'
+            WHEN fin.warehouse = 'DE78' then maw.marketplace = 'DE'
+            WHEN fin.warehouse = 'DE21' then maw.marketplace = 'DE'
+            WHEN fin.warehouse = 'XD14' then maw.marketplace = 'DE' 
+            WHEN fin.warehouse = 'XD72' then maw.marketplace = 'DE'
+            WHEN fin.warehouse = 'XBER' then maw.marketplace = 'DE'
+            WHEN fin.warehouse = 'UKSA' then maw.marketplace = 'UK'
+            WHEN fin.warehouse = 'LT62' then maw.marketplace = 'UK'
+            WHEN fin.warehouse = 'XG32' then maw.marketplace = 'UK'
+            WHEN fin.warehouse = 'RE32' then maw.marketplace = 'UK'
+        END
+ORDER BY fin.apt
