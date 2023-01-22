@@ -15,7 +15,7 @@ Complete vision for inbounding and outbounding of specific items
 <p>The 2 Pipeline is extracted 2 times with Power Query, to have the vision with different granularity: Appointment level and Item Level.</p>
 <p>We create the Pivot Tables where we will extract all the data in a report page with the function GETPIVOTDATA</p>
 <p><br></p>
-<p>ACHIEVEMENTS</p>
+<p><strong>ACHIEVEMENTS</strong></p>
 <p>We decreased the overall Fullness of these specific items by 14% in 2 weeks.</p>
 <p>The Inbounding of&nbsp; Low Turning items was decreased for 2 weeks.</p>
 <p>The report helps in reducing the Fullness without affecting the availability of High Sales product</p>
