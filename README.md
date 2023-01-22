@@ -1,5 +1,5 @@
 # fullness_specific
-Complete vision for inbounding and outbounding of specific items
+Complete vision for Inbounding and Outbounding of specific items
 <p>Schemas, Tables, Columns and Values are changed from the original ones to avoid sensitive data being released outside the company</p>
 <p>Tool used:</p>
 <ul>
