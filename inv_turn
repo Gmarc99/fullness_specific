@@ -1,0 +1,182 @@
+/*+ ETLM {
+depend:{
+add:[
+	{name:"dl.class"},
+	{name:"bk.shipping"},
+    {name:"dl.inv_ow"}
+}
+} */
+
+
+/*find group of items using names inside the title*/
+with MAW AS 
+	(
+		SELECT
+		
+		item,
+		marketplace,
+		maw.title
+		
+		FROM
+		dl.class maw
+		
+		WHERE
+		maw.subcategory_description IN ('%abcd%','%abcd%') OR
+		(
+			maw.title ILIKE ('%abcd%%') OR maw.title ILIKE ('%abcd%')
+			OR maw.title ILIKE ('%abcd%') OR maw.title ILIKE ('%%abcd%')
+			OR maw.title ILIKE ('%abcd%') OR maw.title ILIKE ('%abcd%')
+		)
+		AND maw.title NOT ILIKE ('%abcd%') 
+		AND maw.title NOT ILIKE ('%abcd%')
+		AND marketplace IN ('DE','UK','FR','IT','ES')
+		
+		GROUP BY 1,2,3
+	),
+	
+/*returning sales for those items*/
+ship AS
+	(
+		SELECT 
+		
+		dcsi.item,
+		dcsi.warehouse,
+		DATE_PART(week, DATEADD(day,1,dcsi.sales_date)) AS week,
+		SUM(sales) AS sales
+		FROM  bk.shipping  dcsi 
+
+		WHERE 
+			dcsi.marketplace IN ('DE','UK','FR','IT','ES')
+			/*return historical data*/
+			AND DATE_PART(w, dcsi.sales_date) IN
+			  (
+				  (DATE_PART(week,TO_DATE(getdate(), 'YYYY/MM/DD')-7 )),
+				  (DATE_PART(week,TO_DATE(getdate(), 'YYYY/MM/DD')-14)),
+				  (DATE_PART(week,TO_DATE(getdate(), 'YYYY/MM/DD')-21)),
+				  (DATE_PART(week,TO_DATE(getdate(), 'YYYY/MM/DD')-28)),
+				  (DATE_PART(week,TO_DATE(getdate(), 'YYYY/MM/DD')-35)),
+				  (DATE_PART(week,TO_DATE(getdate(), 'YYYY/MM/DD')-42)),
+				  (DATE_PART(week,TO_DATE(getdate(), 'YYYY/MM/DD')-49)),
+				  (DATE_PART(week,TO_DATE(getdate(), 'YYYY/MM/DD')-56)),
+				  (DATE_PART(week,TO_DATE(getdate(), 'YYYY/MM/DD')-63)),
+				  (DATE_PART(week,TO_DATE(getdate(), 'YYYY/MM/DD')-70)),
+				  (DATE_PART(week,TO_DATE(getdate(), 'YYYY/MM/DD')-77)),
+				  (DATE_PART(week,TO_DATE(getdate(), 'YYYY/MM/DD')-84))
+			  )
+			AND sales_date > getdate()-100 /* to discard last year data*/
+			AND DCSI.item IN (SELECT item FROM MAW)
+
+		GROUP BY 1,2,3
+	),
+	
+	/*returning inventory and volume for the items*/
+fin AS
+	(
+		SELECT
+		
+        DATE_PART(week,ilbo.snapshot_day) AS week,
+        ilbo.item,
+        ilbo.warehouse,
+        MAW.marketplace,
+        ilbo.inventory_condition_code,
+        SUM(ilbo.on_hand_quantity) AS units,
+		maw.title,
+		CSO.cube_cuft
+        
+		FROM dl.inv_ow ilbo 
+		LEFT JOIN 
+			dl.sort CSO ON ILBO.item = CSO.item
+		AND 
+		CASE 
+			WHEN  ilbo.warehouse = 'DE78' THEN CSO.marketplace = 'DE' 
+			WHEN  ilbo.warehouse = 'XD14' THEN CSO.marketplace = 'DE' 
+			WHEN  ilbo.warehouse = 'XD72' THEN CSO.marketplace = 'DE' 
+			WHEN  ilbo.warehouse = 'XBER' THEN CSO.marketplace = 'DE' 
+			WHEN  ilbo.warehouse = 'DE21' THEN CSO.marketplace = 'DE' 
+			WHEN  ilbo.warehouse = 'XG32' THEN CSO.marketplace = 'UK' 
+			WHEN  ilbo.warehouse = 'UKSA' THEN CSO.marketplace = 'UK' 
+			WHEN  ilbo.warehouse = 'RE32' THEN CSO.marketplace = 'UK' 
+			WHEN  ilbo.warehouse = 'LT62' THEN CSO.marketplace = 'UK' 
+			WHEN  ilbo.warehouse = 'DFR1' THEN CSO.marketplace = 'FR' 
+			WHEN  ilbo.warehouse = 'DFR5' THEN CSO.marketplace = 'FR' 
+			WHEN  ilbo.warehouse = 'RE34' THEN CSO.marketplace = 'IT' 
+			WHEN  ilbo.warehouse = 'SW78' THEN CSO.marketplace = 'IT' 
+			WHEN  ilbo.warehouse = 'AS21' THEN CSO.marketplace = 'ES'
+			WHEN  ilbo.warehouse = 'BCN3' THEN CSO.marketplace = 'ES'
+			WHEN  ilbo.warehouse = 'SA54' THEN CSO.marketplace = 'ES'
+		END
+		
+		JOIN
+		
+		MAW ON ILBO.item = MAW.item
+		AND 
+		CASE 
+			WHEN  ilbo.warehouse = 'DE78' THEN MAW.marketplace = 'DE' 
+			WHEN  ilbo.warehouse = 'XD14' THEN MAW.marketplace = 'DE' 
+			WHEN  ilbo.warehouse = 'XD72' THEN MAW.marketplace = 'DE' 
+			WHEN  ilbo.warehouse = 'XBER' THEN MAW.marketplace = 'DE' 
+			WHEN  ilbo.warehouse = 'DE21' THEN MAW.marketplace = 'DE' 
+			WHEN  ilbo.warehouse = 'XG32' THEN MAW.marketplace = 'UK' 
+			WHEN  ilbo.warehouse = 'UKSA' THEN MAW.marketplace = 'UK' 
+			WHEN  ilbo.warehouse = 'RE32' THEN MAW.marketplace = 'UK' 
+			WHEN  ilbo.warehouse = 'LT62' THEN MAW.marketplace = 'UK' 
+			WHEN  ilbo.warehouse = 'DFR1' THEN MAW.marketplace = 'FR' 
+			WHEN  ilbo.warehouse = 'DFR5' THEN MAW.marketplace = 'FR' 
+			WHEN  ilbo.warehouse = 'RE34' THEN MAW.marketplace = 'IT' 
+			WHEN  ilbo.warehouse = 'SW78' THEN MAW.marketplace = 'IT' 
+			WHEN  ilbo.warehouse = 'AS21' THEN MAW.marketplace = 'ES'
+			WHEN  ilbo.warehouse = 'BCN3' THEN MAW.marketplace = 'ES'
+			WHEN  ilbo.warehouse = 'SA54' THEN MAW.marketplace = 'ES'
+		END
+		
+		WHERE ilbo.region_id = 2 
+		AND ilbo.snapshot_day BETWEEN getdate()-70 AND GETDATE()
+			AND ilbo.warehouse IN ('DE78','XD72','XD14','DE21','XBER','XG32','LT62','UKSA','RE32','DFR1','DFR5','RE34','SW78','AS21','BCN3','SA54')
+			AND ilbo.inventory_condition_code = 'SELLABLE'
+			AND ilbo.on_hand_quantity > 0
+			AND maw.title NOT ILIKE ('%abcd%') 
+			AND maw.title NOT ILIKE ('%abcd%')
+			AND DATE_PART(dow, ilbo.snapshot_day) = 6
+
+		GROUP BY 1,2,3,4,5,7,8
+	
+	)
+
+
+	SELECT
+	
+	fin.week,
+	fin.item,
+	fin.warehouse,
+	fin.marketplace,
+	fin.inventory_condition_code,
+	fin.units,
+	fin.title,
+	fin.cube_cuft,
+	ship.sales,
+	ship.sales * 52 / fin.units AS inv_turn
+	
+	FROM fin
+	LEFT JOIN ship
+	ON fin.item = ship.item AND fin.week = ship.week AND fin.warehouse = ship.warehouse
+
+	AND
+
+		CASE 
+			WHEN  ship.warehouse = 'DE78' THEN fin.marketplace = 'DE' 
+			WHEN  ship.warehouse = 'XD14' THEN fin.marketplace = 'DE' 
+			WHEN  ship.warehouse = 'XD72' THEN fin.marketplace = 'DE' 
+			WHEN  ship.warehouse = 'XBER' THEN fin.marketplace = 'DE' 
+			WHEN  ship.warehouse = 'DE21' THEN fin.marketplace = 'DE' 
+			WHEN  ship.warehouse = 'XG32' THEN fin.marketplace = 'UK' 
+			WHEN  ship.warehouse = 'UKSA' THEN fin.marketplace = 'UK' 
+			WHEN  ship.warehouse = 'RE32' THEN fin.marketplace = 'UK' 
+			WHEN  ship.warehouse = 'LT62' THEN fin.marketplace = 'UK' 
+			WHEN  ship.warehouse = 'DFR1' THEN fin.marketplace = 'FR' 
+			WHEN  ship.warehouse = 'DFR5' THEN fin.marketplace = 'FR' 
+			WHEN  ship.warehouse = 'RE34' THEN fin.marketplace = 'IT' 
+			WHEN  ship.warehouse = 'SW78' THEN fin.marketplace = 'IT' 
+			WHEN  ship.warehouse = 'AS21' THEN fin.marketplace = 'ES'
+			WHEN  ship.warehouse = 'BCN3' THEN fin.marketplace = 'ES'
+			WHEN  ship.warehouse = 'SA54' THEN fin.marketplace = 'ES'
+		end
