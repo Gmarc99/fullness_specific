@@ -9,26 +9,26 @@ add:[
 
 
 /*find group of items using names inside the title*/
-with MAW AS 
+with tita AS 
 	(
 		SELECT
 		
 		item,
 		marketplace,
-		maw.title
+		tita.title
 		
 		FROM
-		dl.class maw
+		dl.class tita
 		
 		WHERE
-		maw.subcategory_description IN ('%abcd%','%abcd%') OR
+		tita.subcategory_description IN ('%abcd%','%abcd%') OR
 		(
-			maw.title ILIKE ('%abcd%%') OR maw.title ILIKE ('%abcd%')
-			OR maw.title ILIKE ('%abcd%') OR maw.title ILIKE ('%%abcd%')
-			OR maw.title ILIKE ('%abcd%') OR maw.title ILIKE ('%abcd%')
+			tita.title ILIKE ('%abcd%%') OR tita.title ILIKE ('%abcd%')
+			OR tita.title ILIKE ('%abcd%') OR tita.title ILIKE ('%%abcd%')
+			OR tita.title ILIKE ('%abcd%') OR tita.title ILIKE ('%abcd%')
 		)
-		AND maw.title NOT ILIKE ('%abcd%') 
-		AND maw.title NOT ILIKE ('%abcd%')
+		AND tita.title NOT ILIKE ('%abcd%') 
+		AND tita.title NOT ILIKE ('%abcd%')
 		AND marketplace IN ('DE','UK','FR','IT','ES')
 		
 		GROUP BY 1,2,3
@@ -64,7 +64,7 @@ ship AS
 				  (DATE_PART(week,TO_DATE(getdate(), 'YYYY/MM/DD')-84))
 			  )
 			AND sales_date > getdate()-100 /* to discard last year data*/
-			AND DCSI.item IN (SELECT item FROM MAW)
+			AND DCSI.item IN (SELECT item FROM tita)
 
 		GROUP BY 1,2,3
 	),
@@ -74,69 +74,69 @@ fin AS
 	(
 		SELECT
 		
-        DATE_PART(week,ilbo.snapshot_day) AS week,
-        ilbo.item,
-        ilbo.warehouse,
-        MAW.marketplace,
-        ilbo.inventory_condition_code,
-        SUM(ilbo.on_hand_quantity) AS units,
-		maw.title,
+        DATE_PART(week,ibow.snapshot_day) AS week,
+        ibow.item,
+        ibow.warehouse,
+        tita.marketplace,
+        ibow.inventory_condition_code,
+        SUM(ibow.on_hand_quantity) AS units,
+		tita.title,
 		CSO.cube_cuft
         
-		FROM dl.inv_ow ilbo 
+		FROM dl.inv_ow ibow 
 		LEFT JOIN 
-			dl.sort CSO ON ILBO.item = CSO.item
+			dl.sort CSO ON ibow.item = CSO.item
 		AND 
 		CASE 
-			WHEN  ilbo.warehouse = 'DE78' THEN CSO.marketplace = 'DE' 
-			WHEN  ilbo.warehouse = 'XD14' THEN CSO.marketplace = 'DE' 
-			WHEN  ilbo.warehouse = 'XD72' THEN CSO.marketplace = 'DE' 
-			WHEN  ilbo.warehouse = 'XBER' THEN CSO.marketplace = 'DE' 
-			WHEN  ilbo.warehouse = 'DE21' THEN CSO.marketplace = 'DE' 
-			WHEN  ilbo.warehouse = 'XG32' THEN CSO.marketplace = 'UK' 
-			WHEN  ilbo.warehouse = 'UKSA' THEN CSO.marketplace = 'UK' 
-			WHEN  ilbo.warehouse = 'RE32' THEN CSO.marketplace = 'UK' 
-			WHEN  ilbo.warehouse = 'LT62' THEN CSO.marketplace = 'UK' 
-			WHEN  ilbo.warehouse = 'DFR1' THEN CSO.marketplace = 'FR' 
-			WHEN  ilbo.warehouse = 'DFR5' THEN CSO.marketplace = 'FR' 
-			WHEN  ilbo.warehouse = 'RE34' THEN CSO.marketplace = 'IT' 
-			WHEN  ilbo.warehouse = 'SW78' THEN CSO.marketplace = 'IT' 
-			WHEN  ilbo.warehouse = 'AS21' THEN CSO.marketplace = 'ES'
-			WHEN  ilbo.warehouse = 'BCN3' THEN CSO.marketplace = 'ES'
-			WHEN  ilbo.warehouse = 'SA54' THEN CSO.marketplace = 'ES'
+			WHEN  ibow.warehouse = 'DE78' THEN CSO.marketplace = 'DE' 
+			WHEN  ibow.warehouse = 'XD14' THEN CSO.marketplace = 'DE' 
+			WHEN  ibow.warehouse = 'XD72' THEN CSO.marketplace = 'DE' 
+			WHEN  ibow.warehouse = 'XBER' THEN CSO.marketplace = 'DE' 
+			WHEN  ibow.warehouse = 'DE21' THEN CSO.marketplace = 'DE' 
+			WHEN  ibow.warehouse = 'XG32' THEN CSO.marketplace = 'UK' 
+			WHEN  ibow.warehouse = 'UKSA' THEN CSO.marketplace = 'UK' 
+			WHEN  ibow.warehouse = 'RE32' THEN CSO.marketplace = 'UK' 
+			WHEN  ibow.warehouse = 'LT62' THEN CSO.marketplace = 'UK' 
+			WHEN  ibow.warehouse = 'DFR1' THEN CSO.marketplace = 'FR' 
+			WHEN  ibow.warehouse = 'DFR5' THEN CSO.marketplace = 'FR' 
+			WHEN  ibow.warehouse = 'RE34' THEN CSO.marketplace = 'IT' 
+			WHEN  ibow.warehouse = 'SW78' THEN CSO.marketplace = 'IT' 
+			WHEN  ibow.warehouse = 'AS21' THEN CSO.marketplace = 'ES'
+			WHEN  ibow.warehouse = 'BCN3' THEN CSO.marketplace = 'ES'
+			WHEN  ibow.warehouse = 'SA54' THEN CSO.marketplace = 'ES'
 		END
 		
 		JOIN
 		
-		MAW ON ILBO.item = MAW.item
+		tita ON ibow.item = tita.item
 		AND 
 		CASE 
-			WHEN  ilbo.warehouse = 'DE78' THEN MAW.marketplace = 'DE' 
-			WHEN  ilbo.warehouse = 'XD14' THEN MAW.marketplace = 'DE' 
-			WHEN  ilbo.warehouse = 'XD72' THEN MAW.marketplace = 'DE' 
-			WHEN  ilbo.warehouse = 'XBER' THEN MAW.marketplace = 'DE' 
-			WHEN  ilbo.warehouse = 'DE21' THEN MAW.marketplace = 'DE' 
-			WHEN  ilbo.warehouse = 'XG32' THEN MAW.marketplace = 'UK' 
-			WHEN  ilbo.warehouse = 'UKSA' THEN MAW.marketplace = 'UK' 
-			WHEN  ilbo.warehouse = 'RE32' THEN MAW.marketplace = 'UK' 
-			WHEN  ilbo.warehouse = 'LT62' THEN MAW.marketplace = 'UK' 
-			WHEN  ilbo.warehouse = 'DFR1' THEN MAW.marketplace = 'FR' 
-			WHEN  ilbo.warehouse = 'DFR5' THEN MAW.marketplace = 'FR' 
-			WHEN  ilbo.warehouse = 'RE34' THEN MAW.marketplace = 'IT' 
-			WHEN  ilbo.warehouse = 'SW78' THEN MAW.marketplace = 'IT' 
-			WHEN  ilbo.warehouse = 'AS21' THEN MAW.marketplace = 'ES'
-			WHEN  ilbo.warehouse = 'BCN3' THEN MAW.marketplace = 'ES'
-			WHEN  ilbo.warehouse = 'SA54' THEN MAW.marketplace = 'ES'
+			WHEN  ibow.warehouse = 'DE78' THEN tita.marketplace = 'DE' 
+			WHEN  ibow.warehouse = 'XD14' THEN tita.marketplace = 'DE' 
+			WHEN  ibow.warehouse = 'XD72' THEN tita.marketplace = 'DE' 
+			WHEN  ibow.warehouse = 'XBER' THEN tita.marketplace = 'DE' 
+			WHEN  ibow.warehouse = 'DE21' THEN tita.marketplace = 'DE' 
+			WHEN  ibow.warehouse = 'XG32' THEN tita.marketplace = 'UK' 
+			WHEN  ibow.warehouse = 'UKSA' THEN tita.marketplace = 'UK' 
+			WHEN  ibow.warehouse = 'RE32' THEN tita.marketplace = 'UK' 
+			WHEN  ibow.warehouse = 'LT62' THEN tita.marketplace = 'UK' 
+			WHEN  ibow.warehouse = 'DFR1' THEN tita.marketplace = 'FR' 
+			WHEN  ibow.warehouse = 'DFR5' THEN tita.marketplace = 'FR' 
+			WHEN  ibow.warehouse = 'RE34' THEN tita.marketplace = 'IT' 
+			WHEN  ibow.warehouse = 'SW78' THEN tita.marketplace = 'IT' 
+			WHEN  ibow.warehouse = 'AS21' THEN tita.marketplace = 'ES'
+			WHEN  ibow.warehouse = 'BCN3' THEN tita.marketplace = 'ES'
+			WHEN  ibow.warehouse = 'SA54' THEN tita.marketplace = 'ES'
 		END
 		
-		WHERE ilbo.region_id = 2 
-		AND ilbo.snapshot_day BETWEEN getdate()-70 AND GETDATE()
-			AND ilbo.warehouse IN ('DE78','XD72','XD14','DE21','XBER','XG32','LT62','UKSA','RE32','DFR1','DFR5','RE34','SW78','AS21','BCN3','SA54')
-			AND ilbo.inventory_condition_code = 'SELLABLE'
-			AND ilbo.on_hand_quantity > 0
-			AND maw.title NOT ILIKE ('%abcd%') 
-			AND maw.title NOT ILIKE ('%abcd%')
-			AND DATE_PART(dow, ilbo.snapshot_day) = 6
+		WHERE ibow.region_id = 2 
+		AND ibow.snapshot_day BETWEEN getdate()-70 AND GETDATE()
+			AND ibow.warehouse IN ('DE78','XD72','XD14','DE21','XBER','XG32','LT62','UKSA','RE32','DFR1','DFR5','RE34','SW78','AS21','BCN3','SA54')
+			AND ibow.inventory_condition_code = 'SELLABLE'
+			AND ibow.on_hand_quantity > 0
+			AND tita.title NOT ILIKE ('%abcd%') 
+			AND tita.title NOT ILIKE ('%abcd%')
+			AND DATE_PART(dow, ibow.snapshot_day) = 6
 
 		GROUP BY 1,2,3,4,5,7,8
 	
@@ -180,3 +180,4 @@ fin AS
 			WHEN  ship.warehouse = 'BCN3' THEN fin.marketplace = 'ES'
 			WHEN  ship.warehouse = 'SA54' THEN fin.marketplace = 'ES'
 		end
+
