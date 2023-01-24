@@ -9,7 +9,7 @@ Complete vision for Inbounding and Outbounding of specific items
 <p>This project has been created for particular instances of fullness on specific items.</p>
 <p>To have a complete vision there are 2 ETL&nbsp;Queries with weekly automated refreshes:</p>
 <ul>
-    <li>The first one returns the Inventory quantity and the Shipment Pipeline at the Item level. We can so analyze the Outbound possibility compared with the Inventory at Annual metric(Inventory Turns).</li>
+    <li>The first one returns the Inventory quantity and the Shipment Pipeline at the Item level. We can analyze the Outbound possibility compared with the Inventory at Annual metric(Inventory Turns).</li>
     <li>The second one returns the Inbound Arrival for those specifics at the Item level.</li>
 </ul>
 <p>The 2 Pipeline is extracted 2 times with Power Query, to have the vision with different granularity: Appointment level and Item Level.</p>
